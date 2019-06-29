@@ -1,0 +1,11 @@
+{
+    "Discord": {"TOKEN": "beans"},
+    "Spotify": {"Client_ID": "beans", "Client_SECRET": "beans", "Temp_EXPIRY": 1561751626.623358, "Temp_TOKEN": "beans"},
+    "Youtube": 
+    {
+        "DeveloperKey": "beans",
+        "client_id":beans",
+        "client_secret":"beans"
+        
+    }
+}
