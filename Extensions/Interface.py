@@ -3,13 +3,16 @@ from discord.ext import commands
 from time import time
 from requests import get, post
 from asyncio import TimeoutError
-from json import load, dump
+from json import load, dump, dumps
 
 class Interface(commands.Cog):
     def __init__(self, client):
         self.client = client
 
-    async def scroll_reactions(self, items, ctx):
+    #lmao this G A R B A G E isn't scalable or flexible, and doesnt check which message the user is reacting to
+    #if there are 2 messages with scrolling reactions, and the user reacts to either one, B O T H will change their position in the list
+    #what an absolute pile of wank
+    async def scroll_reactions(self, items, ctx): 
         msg = await ctx.send(items[0])
         await msg.add_reaction("◀")
         await msg.add_reaction("⏹")
@@ -20,11 +23,9 @@ class Interface(commands.Cog):
             try:
                 reaction, user = await self.client.wait_for('reaction_add', timeout=60.0)
             except TimeoutError:
-                reaction, user = None, None
-            if user == ctx.message.author:
-                if reaction.emoji == None:
-                    break
-                elif reaction.emoji == "◀":
+                break
+            if user == ctx.message.author and reaction.message == msg:
+                if reaction.emoji == "◀":
                     if cycle == 0:
                         cycle = len(items)-1
                     else:
@@ -133,10 +134,13 @@ class Interface(commands.Cog):
         with open(r"Fiendbot\Files\API_keys.json") as file:
             keys = load(file)
             devKey = keys["Youtube"]["DeveloperKey"]
-            userAgent = keys["Youtube"]["client_id"]
-        splitstring = " ".split(ctx.message.clean_content.replace("`",""))
-        yt_type = splitstring[0]
-        content = " ".join(splitstring[1:])
+            client_id = keys["Youtube"]["client_id"]
+            client_secret = keys["Youtube"]["client_secret"]
+        
+        splitstring = ctx.message.clean_content.replace("`","").split(" ")
+        yt_type = splitstring[1]
+        content = " ".join(splitstring[2:])
+        
         yt_types_index = {
             "video": {
                 "index": "videoId",
@@ -154,7 +158,7 @@ class Interface(commands.Cog):
         if not content or yt_type not in yt_types_index:
             content = f"{yt_type} {content}".strip(" ")
             yt_type = "video"
-        
+
         r = get(
             "https://www.googleapis.com/youtube/v3/search",
             params={
@@ -165,10 +169,11 @@ class Interface(commands.Cog):
                 "q": content,
             },
             headers={
-                "User-Agent": userAgent,
+                "User-Agent": dumps({"client_id":client_id, "client_secret":client_secret}),
                 "Content-Type": "application/json",
             }
         )
+
         items = []
         if r.status_code == 200 and r.json()["pageInfo"]["totalResults"] != 0:
             for search_result in r.json()["items"]:
@@ -176,12 +181,11 @@ class Interface(commands.Cog):
                     yt_types_index[yt_type]["index"]]
                 full_link =  yt_types_index[yt_type]["url"].format(response)
                 items.append(full_link)
-        print(items)
-                    
-        # if len(items) > 0:
-        #     await self.scroll_reactions(items, ctx)
-        # else:
-        #     await ctx.send(f"Sorry, there were no results for {content}")
+         
+        if len(items) > 0:
+            await self.scroll_reactions(items, ctx)
+        else:
+            await ctx.send(f"Sorry, there were no results for {content}")
 
 
 def setup(client):
